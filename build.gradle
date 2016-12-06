@@ -1,0 +1,75 @@
+ext {
+    javaVersion = "1.8"
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'pl.allegro.tech.build', name: 'axion-release-plugin', version: '1.4.1'
+    }
+}
+
+apply plugin: "java"
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'maven'
+apply plugin: 'pl.allegro.tech.build.axion-release'
+
+
+sourceCompatibility = javaVersion
+targetCompatibility = javaVersion
+
+apply from: "settings/secret.gradle"
+
+compileJava {
+    options.encoding = "UTF-8"
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+    }
+    from sourceSets.main.allJava
+}
+
+scmVersion {
+    tag {
+        prefix = 'v'
+    }
+}
+
+group 'com.example'
+version = scmVersion.version
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    deployerJars
+}
+
+dependencies {
+    deployerJars "org.springframework.build.aws:org.springframework.build.aws.maven:3.0.0.RELEASE"
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            configuration = configurations.deployerJars
+
+            repository(url: "s3://${bucketName}/release") {
+                authentication(userName: "${accessKeyId}", passphrase: "${secretAccessKey}")
+            }
+            snapshotRepository(url: "s3://${bucketName}/snapshot") {
+                authentication(userName: "${accessKeyId}", passphrase: "${secretAccessKey}")
+            }
+            pom.groupId = project.group
+            pom.artifactId = project.name
+            pom.version = project.version
+        }
+    }
+}
